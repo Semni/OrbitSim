@@ -63,26 +63,20 @@ const mu = G * 9.45996e24;
 const R = 14951e3 / 2;
 
 var deltaTi = 0;
-var deltaTime = [60, 600, 3600, 86400];
-var deltaTimeText = ["1MIN", "10MIN", "1HR", "1DAY"];
+const deltaTime = [60, 600, 3600, 86400];
+const deltaTimeText = ["1MIN", "10MIN", "1HR", "1DAY"];
 
 var deltaVi = 0;
-var deltaV = [1, 10, 100, 1000];
-var deltaVtext = ["1m/s", "10m/s", "100m/s", "1km/s"];
+const deltaV = [1, 10, 100, 1000];
+const deltaVtext = ["1m/s", "10m/s", "100m/s", "1km/s"];
+
+const elementWidth = 64;
+const elementHeight = 16;
+const elementSpacing = 16
 
 var moons = [new Orbit(416490e3, 0.02, 0, 0, 0, 0, 332e3 / 2, G * 1.06e20, "Delta", "rgb(200 200 200)", [])];
 
 var tracks = [];
-//tracks.push(new Track(0, 0, 0, 0, "Gynes", 14951e3 / 2, "rgb(200 200 200)", 9.45996e24, [], []));
-//let kep = kep2cart(416490e3,0.02,0,0,0,0,0,G*9.45996e24,0);
-//tracks.push(new Track(kep[0][0], kep[0][1], kep[1][0], kep[1][1], "Delta", 332e3, "rgb(200 200 200)", 1.06e20, [], []));
-//kep = kep2cart(R + 1600e3,0.02,0,0,0,0,0,G*9.45996e24,0);
-//tracks.push(new Track(kep[0][0], kep[0][1], kep[1][0], kep[1][1], "Alpha", -1, "green", 0, [], []));
-//kep = kep2cart(22000e3,0.02,0,0,0,0,0,G*9.45996e24,0);
-//tracks.push(new Track(kep[0][0], kep[0][1], kep[1][0], kep[1][1], "Bravo", -1, "green", 0, [], []));
-//tracks.push(new Track(2000e3, 0, 0, 200, "Alpha", -1, "green", 0, [], []));
-//tracks.push(new Track(3000e3, -3000e3, -5, 155, "Bravo", -1, "green", 0, [], []));
-
 let vectors = kep_2_cart(0, R + 600e3, 0, 0, 0, 0, 0, 0);
 tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "1st Squadron", -1, "orange", 0, [], []));
 
@@ -556,7 +550,7 @@ function cart2kep(r_vec, v_vec, mu, t){
     return [a, e, i, omega_AP, omega_LAN, T, EA];
 };
 
-function kep2cart(a, e, i, omega_AP, omega_LAN, T, EA, mu, t){
+/*function kep2cart(a, e, i, omega_AP, omega_LAN, T, EA, mu, t){
     var n = Math.sqrt(mu / (a ** 3));
     var m = n * (t - T);
 
@@ -584,7 +578,7 @@ function kep2cart(a, e, i, omega_AP, omega_LAN, T, EA, mu, t){
     var VZ = (Z * h *e / (r * p)) * Math.sin(nu) + (h / r) * (Math.cos(w + nu) * Math.sin(i));
 
     return [[X, Y, Z],[VX, VY, VZ]];
-};
+};*/
 
 function kep_2_cart(e, a, i, O, w, t, t0, M0){
     var dt = t - t0;
@@ -626,57 +620,54 @@ function orbitalPeriod(a){
 };
 
 function addBasicElements(){
-    var topOffset = 16;
-    var rightOffset = 80
-    var vSpacing = 32;
 
     elements.push({
         colour: '#05EFFF',
         text: "DSPL",
-        width: 16 * 4,
-        height: 16,
-        top: topOffset + vSpacing * elements.length - height / 2,
-        left: width / 2 - rightOffset,
+        width: elementWidth,
+        height: elementHeight,
+        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: addDisplayElements
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "MNVR",
-        width: 16 * 4,
-        height: 16,
-        top: topOffset + vSpacing * elements.length - height / 2,
-        left: width / 2 - rightOffset,
+        width: elementWidth,
+        height: elementHeight,
+        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: addManoeuvreElements
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "SIM",
-        width: 16 * 4,
-        height: 16,
-        top: topOffset + vSpacing * elements.length - height / 2,
-        left: width / 2 - rightOffset,
+        width: elementWidth,
+        height: elementHeight,
+        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: addSimulationElements
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "I/O",
-        width: 16 * 4,
-        height: 16,
-        top: topOffset + vSpacing * elements.length - height / 2,
-        left: width / 2 - rightOffset,
+        width: elementWidth,
+        height: elementHeight,
+        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: addIOElements
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "MISC",
-        width: 16 * 4,
-        height: 16,
-        top: topOffset + vSpacing * elements.length - height / 2,
-        left: width / 2 - rightOffset,
+        width: elementWidth,
+        height: elementHeight,
+        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: addMiscElements
     });
 }
@@ -686,87 +677,87 @@ function addDisplayElements(){
     addBasicElements();
 
     var l0 = elements.length;
-    var leftOffset = 16;
-    var bottomOffset = 32;
+    var hOffset = elementHeight;
+    var vOffset = 32;
     var hSpacing = 80;
 
     elements.push({
         colour: '#05EFFF',
         text: "TGT",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: setTGT
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "REFR",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: setRF
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "ZOOM+",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: zoomIn
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "ZOOM-",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: zoomOut
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "UP",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: panUP
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "DOWN",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: panDN
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "LEFT",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: panL
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "RIGHT",
-        width: 16 * 4,
-        height: 16,
-        top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - vOffset,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: panR
     });
 }
@@ -783,100 +774,100 @@ function addManoeuvreElements(){
     elements.push({
         colour: '#05EFFF',
         text: "MAN+",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoAdd
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "MAN-",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoRemove
     });
 
     elements.push({
         colour: '#05EFFF',
         text: deltaTimeText[deltaTi],
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoDeltaTime
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "T+",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoTPlus
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "T-",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoTMinus
     });
 
     elements.push({
         colour: '#05EFFF',
         text: deltaVtext[deltaVi],
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoDeltaV
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "VPRG",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoVPPlus
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "VRTR",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoVPMinus
     });
     
     elements.push({
         colour: '#05EFFF',
         text: "VTAN+",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoVTPlus
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "VTAN-",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoVTMinus
     });
 }
@@ -893,38 +884,38 @@ function addSimulationElements(){
     elements.push({
         colour: '#05EFFF',
         text: deltaTimeText[deltaTi],
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: manoDeltaTime
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "TSTEP",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: setTStep
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "SIM+",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: simTimePlus
     });
 
     elements.push({
         colour: '#05EFFF',
         text: "SIM-",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
         left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
         function: simTimeMinus
@@ -953,13 +944,15 @@ function addMiscElements(){
     elements.push({
         colour: '#05EFFF',
         text: "CLSA",
-        width: 16 * 4,
-        height: 16,
+        width: elementWidth,
+        height: elementHeight,
         top: height / 2 - bottomOffset,
-        left: leftOffset + hSpacing * (elements.length - l0) - width / 2,
+        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
         function: setMinimum
     });
 }
+
+//Interface Functions
 
 function zoomIn(){
     scale *= 2;
