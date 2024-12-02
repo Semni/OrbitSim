@@ -1,16 +1,16 @@
 class Orbit{
-    constructor(a, e, i, omega_AP, omega_LAN, EA, R, mu, name, colour, points){
-        this.a = a;
+    constructor(e, a, i, O, w, t0, M0, R, mu, name, colour){
         this.e = e;
+        this.a = a;
         this.i = i;
-        this.omega_AP = omega_AP;
-        this.omega_LAN = omega_LAN;
-        this.EA = EA;
+        this.O = O;
+        this.w = w;
+        this.t0 = t0;
+        this.M0 = M0;
         this.R = R;
         this.mu = mu;
         this.name = name;
         this.colour = colour;
-        this.points = points;
     }
 }
 
@@ -74,7 +74,7 @@ const elementWidth = 64;
 const elementHeight = 16;
 const elementSpacing = 16
 
-var moons = [new Orbit(416490e3, 0.02, 0, 0, 0, 0, 332e3 / 2, G * 1.06e20, "Delta", "rgb(200 200 200)", [])];
+var moons = [new Orbit(0.02, 416490e3, 0, 0, 0, 0, 0, 332e3 / 2, G * 1.06e20, "Delta", "rgb(200 200 200)")];
 
 var tracks = [];
 let vectors = kep_2_cart(0, R + 600e3, 0, 0, 0, 0, 0, 0);
@@ -104,7 +104,6 @@ let idMAX = -1;
 var elements = [];
 addBasicElements();
 
-calcOrbit();
 calcTrack();
 //calcMinimum();
 draw();
@@ -113,14 +112,7 @@ draw();
 canvas.addEventListener('click', function(event) {
     let stop = false;
     //Get the reference frame points
-    var rPoints = [];
-    if(refFrame != null){
-        rPoints = refFrame.points;
-    }
-    else{
-        var size = simLength;
-        while(size--) rPoints[size] = new Point(0, 0);
-    }
+    var rPoint = getPoint(refFrame, 0)
     
     let x = event.x - width / 2;
     let y = event.y - height / 2;
@@ -145,7 +137,7 @@ canvas.addEventListener('click', function(event) {
     //Select simulated objects
     tracks.forEach(function(element) {
         let s = element.size * scale + selectionRadius;
-        if(Math.abs((element.x - rPoints[0].x) * scale - x) <= s && Math.abs((element.y - rPoints[0].y) * scale - y) <= s){
+        if(Math.abs((element.x - rPoint.x) * scale - x) <= s && Math.abs((element.y - rPoint.y) * scale - y) <= s){
             selectedObject = element;
             draw();
             stop = true;
@@ -153,7 +145,8 @@ canvas.addEventListener('click', function(event) {
         };
         element.manoeuvres.forEach(function(mElement){
             var l = Math.floor(mElement.t / timestep);
-            if(Math.abs((element.points[l].x - rPoints[l].x) * scale - x) <= s && Math.abs((element.points[l].y - rPoints[l].y) * scale - y) <= s){
+            let point = getPoint(refFrame, l);
+            if(Math.abs((element.points[l].x - point.x) * scale - x) <= s && Math.abs((element.points[l].y - point.y) * scale - y) <= s){
                 selectedObject = mElement;
                 draw();
                 stop = true;
@@ -166,8 +159,8 @@ canvas.addEventListener('click', function(event) {
     //Select orbiting objects
     moons.forEach(function(element) {
         let s = element.R * scale + selectionRadius;
-        let mVec = kep_2_cart(element.e, element.a, 0, 0, 0, 0, 0, 0);
-        if(Math.abs((mVec[0][0] - rPoints[0].x) * scale - x) <= s && Math.abs((mVec[0][1] - rPoints[0].y) * scale - y) <= s){
+        let mVec = kep_2_cart(element.e, element.a, element.i, element.O, element.w, 0, element.t0, element.M0);
+        if(Math.abs((mVec[0][0] - rPoint.x) * scale - x) <= s && Math.abs((mVec[0][1] - rPoint.y) * scale - y) <= s){
             selectedObject = element;
             draw();
             stop = true;
@@ -177,7 +170,7 @@ canvas.addEventListener('click', function(event) {
     if(stop) return;
 
     //Select main planet
-    if(Math.abs(x + (rPoints[0].x * scale)) <= s && Math.abs(y + (rPoints[0].y * scale)) <= s){
+    if(Math.abs(x + (rPoint.x * scale)) <= s && Math.abs(y + (rPoint.y * scale)) <= s){
         selectedObject = "Gynes";
         draw();
         stop = true;
@@ -187,15 +180,6 @@ canvas.addEventListener('click', function(event) {
 
     draw();
 }, false);
-
-function calcOrbit(){
-    for (let i = 0; i < moons.length; i++){
-        for (let j = 0; j < simLength; j++) {
-            mVec = kep_2_cart(moons[i].e, moons[i].a, 0, 0, 0, j * timestep, 0, 0);
-            moons[i].points[j] = new Point(mVec[0][0], mVec[0][1]);
-        }
-    };
-}
 
 function calcTrack(){
     for (let i = 0; i < tracks.length; i++){
@@ -216,20 +200,22 @@ function calcTrack(){
             vx += xAcc * a * timestep;
             vy += yAcc * a * timestep;
 
-            for (let l = 0; l < moons.length; l++){
-                var mx = moons[l].points[j].x;
-                var my = moons[l].points[j].y
+            moons.forEach(function(moon) {
+                var mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, j*timestep, moon.t0, moon.M0);
+
+                var mx = mVec[0][0];
+                var my = mVec[0][1];
 
                 d = Math.hypot(x - mx, y - my);
                 
                 xAcc = (mx - x) / d;
                 yAcc = (my - y) / d;
 
-                a = moons[l].mu / (d**2);
+                a = moon.mu / (d**2);
 
                 vx += xAcc * a * timestep;
                 vy += yAcc * a * timestep;
-            }
+            });
 
             for (let k = 0; k < tracks[i].manoeuvres.length; k++){
                 if(Math.floor(tracks[i].manoeuvres[k].t / timestep) == j){
@@ -253,9 +239,6 @@ function calcMinimum(){
     //Calculate Point of closest approach.
     distanceMinimum = Number.MAX_VALUE;
     idMAX = -1;
-
-    //if(targetObject != )
-    return;
     
     for (let i = 0; i < simLength; i++){
         let dx = selectedObject.points[i].x - targetObject.points[i].x;
@@ -281,29 +264,22 @@ function draw(){
     ctx.fillText("Scale: " + round(1e-3 / scale) + "km/px", -(width / 2) + 10, -(height / 2) + 20 + 16);
 
     //Get the reference frame points
-    var rPoints = [];
-    if(refFrame != null){
-        rPoints = refFrame.points;
-    }
-    else{
-        var size = simLength;
-        while(size--) rPoints[size] = new Point(0, 0);
-    }
+    var rPoint = getPoint(refFrame, 0);
 
     //Draw Planet
     ctx.fillStyle = "rgb(200 200 200)";
     ctx.beginPath();
-    ctx.arc(panOff.x - rPoints[0].x * scale, panOff.y - rPoints[0].y * scale, Math.max(R * scale, 3), degToRad(0), degToRad(360), false);
+    ctx.arc(panOff.x - rPoint.x * scale, panOff.y - rPoint.y * scale, Math.max(R * scale, 3), degToRad(0), degToRad(360), false);
     ctx.fill()
 
     //Draw Moons
     moons.forEach(function(moon) {
-        let mVec = kep_2_cart(moon.e,moon.a,0,0,0,0,0,0);
+        let mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, 0, moon.t0, moon.M0);
 
         //Add point
         ctx.fillStyle = moon.colour;
         ctx.beginPath();
-        ctx.arc(panOff.x + (mVec[0][0] - rPoints[0].x) * scale, panOff.y + (mVec[0][1] - rPoints[0].y) * scale, Math.max(moon.R * scale, 3), degToRad(0), degToRad(360), false);
+        ctx.arc(panOff.x + (mVec[0][0] - rPoint.x) * scale, panOff.y + (mVec[0][1] - rPoint.y) * scale, Math.max(moon.R * scale, 3), degToRad(0), degToRad(360), false);
         ctx.fill()
 
         //Draw orbit track
@@ -312,10 +288,11 @@ function draw(){
         ctx.setLineDash([10, 5]);
         ctx.beginPath();
         
-        ctx.moveTo(panOff.x + (mVec[0][0] - rPoints[0].x) * scale, panOff.y + (mVec[0][1] - rPoints[0].y) * scale);
+        ctx.moveTo(panOff.x + (mVec[0][0] - rPoint.x) * scale, panOff.y + (mVec[0][1] - rPoint.y) * scale);
         for (let j = 0; j < simLength; j++) {
-            mVec = kep_2_cart(moon.e,moon.a,0,0,0,j*timestep,0,0);
-            ctx.lineTo(panOff.x + (mVec[0][0] - rPoints[j].x) * scale, panOff.y + (mVec[0][1] - rPoints[j].y) * scale);
+            mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, j * timestep, moon.t0, moon.M0);
+            let point = getPoint(refFrame, j);
+            ctx.lineTo(panOff.x + (mVec[0][0] - point.x) * scale, panOff.y + (mVec[0][1] - point.y) * scale);
         }
         ctx.stroke();
     });
@@ -327,21 +304,22 @@ function draw(){
         ctx.lineWidth = 2;
         ctx.setLineDash([10, 5]);
         ctx.beginPath();
-        ctx.moveTo(panOff.x + (tracks[i].x - rPoints[0].x) * scale, panOff.y + (tracks[i].y - rPoints[0].y) * scale);
+        ctx.moveTo(panOff.x + (tracks[i].x - rPoint.x) * scale, panOff.y + (tracks[i].y - rPoint.y) * scale);
         for (let j = 0; j < simLength; j++) {
-            ctx.lineTo(panOff.x + (tracks[i].points[j].x - rPoints[j].x) * scale, panOff.y + (tracks[i].points[j].y - rPoints[j].y) * scale);
+            let point = getPoint(refFrame, j);
+            ctx.lineTo(panOff.x + (tracks[i].points[j].x - point.x) * scale, panOff.y + (tracks[i].points[j].y - point.y) * scale);
         }
         ctx.stroke();
         
         //Add name
         ctx.fillStyle = "white";
         ctx.font = "16px Consolas";
-        ctx.fillText(tracks[i].name, panOff.x + ((tracks[i].x - rPoints[0].x) + tracks[i].size) * scale + 10, panOff.y + (tracks[i].y - rPoints[0].y) * scale);
+        ctx.fillText(tracks[i].name, panOff.x + ((tracks[i].x - rPoint.x) + tracks[i].size) * scale + 10, panOff.y + (tracks[i].y - rPoint.y) * scale);
 
         //Add point
         ctx.fillStyle = tracks[i].colour;
         ctx.beginPath();
-        ctx.arc(panOff.x + (tracks[i].x - rPoints[0].x) * scale, panOff.y + (tracks[i].y - rPoints[0].y) * scale, Math.max(tracks[i].size * scale, 3), degToRad(0), degToRad(360), false);
+        ctx.arc(panOff.x + (tracks[i].x - rPoint.x) * scale, panOff.y + (tracks[i].y - rPoint.y) * scale, Math.max(tracks[i].size * scale, 3), degToRad(0), degToRad(360), false);
         ctx.fill()
 
         //Add manoeuvres
@@ -351,8 +329,9 @@ function draw(){
         for (let j = 0; j < tracks[i].manoeuvres.length; j++) {
             ctx.beginPath();
             let l = Math.floor(tracks[i].manoeuvres[j].t / timestep);
-            let x = panOff.x + (tracks[i].points[l].x - rPoints[l].x) * scale;
-            let y = panOff.y + (tracks[i].points[l].y - rPoints[l].y) * scale;
+            let point = getPoint(refFrame, l);
+            let x = panOff.x + (tracks[i].points[l].x - point.x) * scale;
+            let y = panOff.y + (tracks[i].points[l].y - point.y) * scale;
 
             ctx.arc(x, y, 5, degToRad(0), degToRad(360), false);
             ctx.stroke();
@@ -366,8 +345,8 @@ function draw(){
 
     //Add selection
     if(selectedObject instanceof Track){
-        let x = panOff.x + (selectedObject.x - rPoints[0].x) * scale;
-        let y = panOff.y + (selectedObject.y - rPoints[0].y) * scale;
+        let x = panOff.x + (selectedObject.x - rPoint.x) * scale;
+        let y = panOff.y + (selectedObject.y - rPoint.y) * scale;
         let r = selectedObject.size * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
@@ -376,11 +355,12 @@ function draw(){
         ctx.fillStyle = "white";
         ctx.font = "16px Consolas";
         ctx.fillText("Track " + selectedObject.name, -(width / 2) + 10, -(height / 2) + 20 + 16 * 3);
-        //ctx.fillText("Name: " + selectedObject.name, -(width / 2) + 10, -(height / 2) + 20 + 16 * 4);
     }
     else if(selectedObject instanceof Orbit){
-        let x = panOff.x + (selectedObject.points[0].x - rPoints[0].x) * scale;
-        let y = panOff.y + (selectedObject.points[0].y - rPoints[0].y) * scale;
+        let mVec = kep_2_cart(selectedObject.e, selectedObject.a, selectedObject.i, selectedObject.O, selectedObject.w, 0, selectedObject.t0, selectedObject.M0);
+
+        let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
+        let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
         let r = selectedObject.R * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
@@ -389,12 +369,12 @@ function draw(){
         ctx.fillStyle = "white";
         ctx.font = "16px Consolas";
         ctx.fillText("Moon " + selectedObject.name, -(width / 2) + 10, -(height / 2) + 20 + 16 * 3);
-        //ctx.fillText("Name: " + selectedObject.name, -(width / 2) + 10, -(height / 2) + 20 + 16 * 4);
     }
     else if(selectedObject instanceof Manoeuvre){
         let l = Math.floor(selectedObject.t / timestep);
-        let x = panOff.x + (selectedObject.track.points[l].x - rPoints[l].x) * scale;
-        let y = panOff.y + (selectedObject.track.points[l].y - rPoints[l].y) * scale;
+        let point = getPoint(refFrame, l);
+        let x = panOff.x + (selectedObject.track.points[l].x - point.x) * scale;
+        let y = panOff.y + (selectedObject.track.points[l].y - point.y) * scale;
         ctx.arc(x, y, 10, degToRad(0), degToRad(360), false);
         ctx.stroke();
 
@@ -409,8 +389,8 @@ function draw(){
         ctx.fillText("ΔVt " + selectedObject.vt + "m/s", -(width / 2) + 10, -(height / 2) + 20 + 16 * 8);
     }
     else if(typeof selectedObject == 'string'){
-        let x = panOff.x - rPoints[0].x * scale;
-        let y = panOff.y - rPoints[0].y * scale;
+        let x = panOff.x - rPoint.x * scale;
+        let y = panOff.y - rPoint.y * scale;
         let r = R * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
@@ -418,7 +398,6 @@ function draw(){
         ctx.fillStyle = "white";
         ctx.font = "16px Consolas";
         ctx.fillText("Planet " + selectedObject, -(width / 2) + 10, -(height / 2) + 20 + 16 * 3);
-        //ctx.fillText("Name: " + selectedObject, -(width / 2) + 10, -(height / 2) + 20 + 16 * 4);
     }
 
     ctx.strokeStyle = "green";
@@ -428,29 +407,32 @@ function draw(){
 
     //Add target
     if(targetObject instanceof Track){
-        let x = panOff.x + (targetObject.x - rPoints[0].x) * scale;
-        let y = panOff.y + (targetObject.y - rPoints[0].y) * scale;
+        let x = panOff.x + (targetObject.x - rPoint.x) * scale;
+        let y = panOff.y + (targetObject.y - rPoint.y) * scale;
         let r = targetObject.size * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
     }
     else if(targetObject instanceof Orbit){
-        let x = panOff.x + (targetObject.points[0].x - rPoints[0].x) * scale;
-        let y = panOff.y + (targetObject.points[0].y - rPoints[0].y) * scale;
+        let mVec = kep_2_cart(targetObject.e, targetObject.a, targetObject.i, targetObject.O, targetObject.w, 0, targetObject.t0, targetObject.M0);
+
+        let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
+        let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
         let r = targetObject.R * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
     }
     else if(targetObject instanceof Manoeuvre){
         let l = Math.floor(targetObject.t / timestep);
-        let x = panOff.x + (targetObject.track.points[l].x - rPoints[l].x) * scale;
-        let y = panOff.y + (targetObject.track.points[l].y - rPoints[l].y) * scale;
+        let point = getPoint(refFrame, l);
+        let x = panOff.x + (targetObject.track.points[l].x - point.x) * scale;
+        let y = panOff.y + (targetObject.track.points[l].y - point.y) * scale;
         ctx.arc(x, y, 10, degToRad(0), degToRad(360), false);
         ctx.stroke();
     }
     else if(typeof targetObject == 'string'){
-        let x = panOff.x - rPoints[0].x * scale;
-        let y = panOff.y - rPoints[0].y * scale;
+        let x = panOff.x - rPoint.x * scale;
+        let y = panOff.y - rPoint.y * scale;
         let r = R * scale + 8;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
@@ -458,12 +440,14 @@ function draw(){
 
     if(idMAX != -1){
         //Draw point of closest approach.
+        let point = getPoint(refFrame, idMAX);
+
         ctx.strokeStyle = "rgb(255 0 0 / 80%)";
         ctx.lineWidth = 2;
         ctx.setLineDash([10, 5]);
         ctx.beginPath();
-        ctx.moveTo(panOff.x + trackA.points[idMAX].x * scale - rPoints[idMAX].x * scale, panOff.y + trackA.points[idMAX].y * scale - rPoints[idMAX].y * scale);
-        ctx.lineTo(panOff.x + trackB.points[idMAX].x * scale - rPoints[idMAX].x * scale, panOff.y + trackB.points[idMAX].y * scale - rPoints[idMAX].y * scale);
+        ctx.moveTo(panOff.x + trackA.points[idMAX].x * scale - point.x * scale, panOff.y + trackA.points[idMAX].y * scale - point.y * scale);
+        ctx.lineTo(panOff.x + trackB.points[idMAX].x * scale - point.x * scale, panOff.y + trackB.points[idMAX].y * scale - point.y * scale);
         ctx.stroke();
 
         let trk = trackA;
@@ -472,8 +456,8 @@ function draw(){
         }
         ctx.fillStyle = "red";
         ctx.font = "16px Consolas";
-        ctx.fillText("Closest approach: T+" + displayTime(idMAX * timestep), panOff.x + trk.points[idMAX].x * scale - rPoints[idMAX].x * scale + 10, panOff.y + trk.points[idMAX].y * scale - rPoints[idMAX].y * scale);
-        ctx.fillText(Math.floor(distanceMinimum / 1000) + " Km", panOff.x + trk.points[idMAX].x * scale - rPoints[idMAX].x * scale + 10, panOff.y + trk.points[idMAX].y * scale - rPoints[idMAX].y * scale + 16);
+        ctx.fillText("Closest approach: T+" + displayTime(idMAX * timestep), panOff.x + trk.points[idMAX].x * scale - point.x * scale + 10, panOff.y + trk.points[idMAX].y * scale - point.y * scale);
+        ctx.fillText(Math.floor(distanceMinimum / 1000) + " Km", panOff.x + trk.points[idMAX].x * scale - point.x * scale + 10, panOff.y + trk.points[idMAX].y * scale - point.y * scale + 16);
     };
 
     //Render UI elements
@@ -516,6 +500,19 @@ function displayTime(t){
     }
 };
 
+function getPoint(obj, i){
+    if(obj instanceof Track){
+        return obj.points[i];
+    }
+    else if(obj instanceof Orbit){
+        var mVec = kep_2_cart(obj.e, obj.a, obj.i, obj.O, obj.w, i * obj, obj.t0, obj.M0);
+        return new Point(mVec[0][0], mVec[0][1]);
+    }
+    else{
+        return new Point(0, 0);
+    }
+}
+
 function cart2kep(r_vec, v_vec, mu, t){
     let h_bar = math.cross(r_vec,v_vec);
     let h = math.norm(h_bar);
@@ -549,36 +546,6 @@ function cart2kep(r_vec, v_vec, mu, t){
 
     return [a, e, i, omega_AP, omega_LAN, T, EA];
 };
-
-/*function kep2cart(a, e, i, omega_AP, omega_LAN, T, EA, mu, t){
-    var n = Math.sqrt(mu / (a ** 3));
-    var m = n * (t - T);
-
-    var MA = EA - e * Math.sin(EA);
-
-    var nu = 2 * Math.atan(Math.sqrt((1 + e) / (1 - e)) * Math.tan(EA / 2));
-
-    var r = a * (1 - e * Math.cos(EA));
-
-    var h = Math.sqrt(mu * a * (1 - e ** 2));
-
-    var Om = omega_LAN;
-    var w = omega_AP;
-
-    var X = r * (Math.cos(Om) * Math.cos(w + nu) - Math.sin(Om) *  Math.sin(w + nu) * Math.cos(i));
-    var Y = r * (Math.sin(Om) * Math.cos(w + nu) - Math.cos(Om) *  Math.sin(w + nu) * Math.cos(i));
-    var Z = r * (Math.sin(i) * Math.sin(w + nu));
-
-    var p = a * (1 - e ** 2);
-
-    var VX = (X * h * e / (r * p)) * Math.sin(nu) - (h / r) * (Math.cos(Om) * Math.sin(w + nu) + 
-    Math.sin(Om) * Math.cos(w + nu) * Math.cos(i));
-    var VY = (Y * h *e / (r * p)) * Math.sin(nu) - (h / r) * (Math.sin(Om) * Math.sin(w + nu) - 
-    Math.cos(Om) * Math.cos(w + nu) * Math.cos(i));
-    var VZ = (Z * h *e / (r * p)) * Math.sin(nu) + (h / r) * (Math.cos(w + nu) * Math.sin(i));
-
-    return [[X, Y, Z],[VX, VY, VZ]];
-};*/
 
 function kep_2_cart(e, a, i, O, w, t, t0, M0){
     var dt = t - t0;
@@ -623,16 +590,6 @@ function addBasicElements(){
 
     elements.push({
         colour: '#05EFFF',
-        text: "DSPL",
-        width: elementWidth,
-        height: elementHeight,
-        top: elementSpacing + (elementHeight + elementSpacing) * elements.length - height / 2,
-        left: width / 2 - (elementWidth + elementSpacing),
-        function: addDisplayElements
-    });
-
-    elements.push({
-        colour: '#05EFFF',
         text: "MNVR",
         width: elementWidth,
         height: elementHeight,
@@ -670,44 +627,14 @@ function addBasicElements(){
         left: width / 2 - (elementWidth + elementSpacing),
         function: addMiscElements
     });
-}
 
-function addDisplayElements(){
-    elements = [];
-    addBasicElements();
-
-    var l0 = elements.length;
-    var hOffset = elementHeight;
-    var vOffset = 32;
-    var hSpacing = 80;
-
-    elements.push({
-        colour: '#05EFFF',
-        text: "TGT",
-        width: elementWidth,
-        height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
-        function: setTGT
-    });
-
-    elements.push({
-        colour: '#05EFFF',
-        text: "REFR",
-        width: elementWidth,
-        height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
-        function: setRF
-    });
-    
     elements.push({
         colour: '#05EFFF',
         text: "ZOOM+",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing) * 3,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: zoomIn
     });
     
@@ -716,38 +643,38 @@ function addDisplayElements(){
         text: "ZOOM-",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing) * 3,
+        left: width / 2 - (elementWidth + elementSpacing) * 3,
         function: zoomOut
     });
-    
+
     elements.push({
         colour: '#05EFFF',
         text: "UP",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing) * 3,
+        left: width / 2 - (elementWidth + elementSpacing) * 2,
         function: panUP
     });
-    
+
     elements.push({
         colour: '#05EFFF',
         text: "DOWN",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing),
+        left: width / 2 - (elementWidth + elementSpacing) * 2,
         function: panDN
     });
-    
+
     elements.push({
         colour: '#05EFFF',
         text: "LEFT",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing) * 2,
+        left: width / 2 - (elementWidth + elementSpacing) * 3,
         function: panL
     });
     
@@ -756,9 +683,29 @@ function addDisplayElements(){
         text: "RIGHT",
         width: elementWidth,
         height: elementHeight,
-        top: height / 2 - vOffset,
-        left: elementSpacing + hSpacing * (elements.length - l0) - width / 2,
+        top: height / 2 - (elementHeight + elementSpacing) * 2,
+        left: width / 2 - (elementWidth + elementSpacing),
         function: panR
+    });
+
+    elements.push({
+        colour: '#05EFFF',
+        text: "TGT",
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - (elementHeight + elementSpacing) * 2,
+        left: width / 2 - (elementWidth + elementSpacing) * 2,
+        function: setTGT
+    });
+
+    elements.push({
+        colour: '#05EFFF',
+        text: "REFR",
+        width: elementWidth,
+        height: elementHeight,
+        top: height / 2 - (elementHeight + elementSpacing),
+        left: width / 2 - (elementWidth + elementSpacing) * 3,
+        function: setRF
     });
 }
 
@@ -955,15 +902,15 @@ function addMiscElements(){
 //Interface Functions
 
 function zoomIn(){
-    scale *= 2;
-    panOff.x *= 2;
-    panOff.y *= 2;
+    scale *= 1.5;
+    panOff.x *= 1.5;
+    panOff.y *= 1.5;
 };
 
 function zoomOut(){
-    scale *= 0.5;
-    panOff.x *= 0.5;
-    panOff.y *= 0.5;
+    scale *= 0.75;
+    panOff.x *= 0.75;
+    panOff.y *= 0.75;
 };
 
 function setRF(){
@@ -1060,7 +1007,6 @@ function manoTMinus(){
 
 function simTimePlus(){
     simLength += deltaTime[deltaTi] / timestep;
-    calcOrbit();
     calcTrack();
 }
 
@@ -1068,13 +1014,11 @@ function simTimeMinus(){
     simLength -= deltaTime[deltaTi] / timestep;
     if(simLength < 0)
         simLength = 0;
-    calcOrbit();
     calcTrack();
 }
 
 function setTStep(){
     timestep = deltaTime[deltaTi];
-    calcOrbit();
     calcTrack();
 }
 
