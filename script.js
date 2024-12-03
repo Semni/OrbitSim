@@ -55,7 +55,7 @@ var simLength = 1440;
 const G = 6.67430e-11
 
 var timestep = 60
-var scale = 0.05e-3
+var scale = 0.005e-3
 
 const selectionRadius = 10;
 
@@ -70,15 +70,21 @@ var deltaVi = 0;
 const deltaV = [1, 10, 100, 1000];
 const deltaVtext = ["1m/s", "10m/s", "100m/s", "1km/s"];
 
+//Graphical element settings
 const elementWidth = 64;
 const elementHeight = 16;
-const elementSpacing = 16
+const elementSpacing = 16;
+const manoeuvreSize = 5;
+const selectionSize = 8;
+const targetSize = 16;
 
 var moons = [new Orbit(0.02, 416490e3, 0, 0, 0, 0, 0, 332e3 / 2, G * 1.06e20, "Delta", "rgb(200 200 200)")];
 
 var tracks = [];
 let vectors = kep_2_cart(0, R + 600e3, 0, 0, 0, 0, 0, 0);
 tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "1st Squadron", -1, "orange", 0, [], []));
+vectors = kep_2_cart(0.02, 416490e3 + 500e3, 0, 0, 0, 0, 0, 0);
+tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "2nd Squadron", -1, "orange", 0, [], []));
 
 //Selected object
 var selectedObject = null;
@@ -102,7 +108,8 @@ let idMAX = -1;
 
 //Add UI Elements
 var elements = [];
-addBasicElements();
+//addBasicElements();
+addManoeuvreElements();
 
 calcTrack();
 //calcMinimum();
@@ -333,7 +340,7 @@ function draw(){
             let x = panOff.x + (tracks[i].points[l].x - point.x) * scale;
             let y = panOff.y + (tracks[i].points[l].y - point.y) * scale;
 
-            ctx.arc(x, y, 5, degToRad(0), degToRad(360), false);
+            ctx.arc(x, y, manoeuvreSize, degToRad(0), degToRad(360), false);
             ctx.stroke();
         }
     }
@@ -347,7 +354,7 @@ function draw(){
     if(selectedObject instanceof Track){
         let x = panOff.x + (selectedObject.x - rPoint.x) * scale;
         let y = panOff.y + (selectedObject.y - rPoint.y) * scale;
-        let r = selectedObject.size * scale + 8;
+        let r = selectedObject.size * scale + selectionSize;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
 
@@ -361,7 +368,7 @@ function draw(){
 
         let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
         let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
-        let r = selectedObject.R * scale + 8;
+        let r = selectedObject.R * scale + selectionSize;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
 
@@ -375,7 +382,7 @@ function draw(){
         let point = getPoint(refFrame, l);
         let x = panOff.x + (selectedObject.track.points[l].x - point.x) * scale;
         let y = panOff.y + (selectedObject.track.points[l].y - point.y) * scale;
-        ctx.arc(x, y, 10, degToRad(0), degToRad(360), false);
+        ctx.arc(x, y, selectionSize + 2, degToRad(0), degToRad(360), false);
         ctx.stroke();
 
         //Display selected item info
@@ -391,7 +398,7 @@ function draw(){
     else if(typeof selectedObject == 'string'){
         let x = panOff.x - rPoint.x * scale;
         let y = panOff.y - rPoint.y * scale;
-        let r = R * scale + 8;
+        let r = R * scale + selectionSize;
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
         
@@ -400,17 +407,26 @@ function draw(){
         ctx.fillText("Planet " + selectedObject, -(width / 2) + 10, -(height / 2) + 20 + 16 * 3);
     }
 
-    ctx.strokeStyle = "green";
+    ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
-
+    
     //Add target
     if(targetObject instanceof Track){
         let x = panOff.x + (targetObject.x - rPoint.x) * scale;
         let y = panOff.y + (targetObject.y - rPoint.y) * scale;
-        let r = targetObject.size * scale + 8;
-        ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        let r0 = targetObject.size * scale + selectionSize;
+        let r1 = targetObject.size * scale + targetSize;
+        //ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        ctx.moveTo(x + r0, y);
+        ctx.lineTo(x + r1, y);
+        ctx.moveTo(x - r0, y);
+        ctx.lineTo(x - r1, y);
+        ctx.moveTo(x, y + r0);
+        ctx.lineTo(x, y + r1);
+        ctx.moveTo(x, y - r0);
+        ctx.lineTo(x, y - r1);
         ctx.stroke();
     }
     else if(targetObject instanceof Orbit){
@@ -418,8 +434,17 @@ function draw(){
 
         let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
         let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
-        let r = targetObject.R * scale + 8;
-        ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        let r0 = targetObject.R * scale + selectionSize;
+        let r1 = targetObject.R * scale + targetSize;
+        //ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        ctx.moveTo(x + r0, y);
+        ctx.lineTo(x + r1, y);
+        ctx.moveTo(x - r0, y);
+        ctx.lineTo(x - r1, y);
+        ctx.moveTo(x, y + r0);
+        ctx.lineTo(x, y + r1);
+        ctx.moveTo(x, y - r0);
+        ctx.lineTo(x, y - r1);
         ctx.stroke();
     }
     else if(targetObject instanceof Manoeuvre){
@@ -427,14 +452,33 @@ function draw(){
         let point = getPoint(refFrame, l);
         let x = panOff.x + (targetObject.track.points[l].x - point.x) * scale;
         let y = panOff.y + (targetObject.track.points[l].y - point.y) * scale;
-        ctx.arc(x, y, 10, degToRad(0), degToRad(360), false);
+        let r0 = 2 + selectionSize;
+        let r1 = 2 + targetSize;
+        //ctx.arc(x, y, 10, degToRad(0), degToRad(360), false);
+        ctx.moveTo(x + r0, y);
+        ctx.lineTo(x + r1, y);
+        ctx.moveTo(x - r0, y);
+        ctx.lineTo(x - r1, y);
+        ctx.moveTo(x, y + r0);
+        ctx.lineTo(x, y + r1);
+        ctx.moveTo(x, y - r0);
+        ctx.lineTo(x, y - r1);
         ctx.stroke();
     }
     else if(typeof targetObject == 'string'){
         let x = panOff.x - rPoint.x * scale;
         let y = panOff.y - rPoint.y * scale;
-        let r = R * scale + 8;
-        ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        let r0 = R * scale + selectionSize;
+        let r1 = R * scale + targetSize;
+        //ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
+        ctx.moveTo(x + r0, y);
+        ctx.lineTo(x + r1, y);
+        ctx.moveTo(x - r0, y);
+        ctx.lineTo(x - r1, y);
+        ctx.moveTo(x, y + r0);
+        ctx.lineTo(x, y + r1);
+        ctx.moveTo(x, y - r0);
+        ctx.lineTo(x, y - r1);
         ctx.stroke();
     }
 
@@ -505,7 +549,7 @@ function getPoint(obj, i){
         return obj.points[i];
     }
     else if(obj instanceof Orbit){
-        var mVec = kep_2_cart(obj.e, obj.a, obj.i, obj.O, obj.w, i * obj, obj.t0, obj.M0);
+        var mVec = kep_2_cart(obj.e, obj.a, obj.i, obj.O, obj.w, i * timestep, obj.t0, obj.M0);
         return new Point(mVec[0][0], mVec[0][1]);
     }
     else{
@@ -924,7 +968,7 @@ function setRF(){
 
 function setTGT()
 {
-    if(selectedObject instanceof Track || selectedObject instanceof Orbit){
+    if(selectedObject instanceof Track || selectedObject instanceof Orbit || typeof selectedObject == 'string'){
         targetObject = selectedObject;
         selectedObject = null;
     }
