@@ -52,12 +52,6 @@ var panOff = new Point(0, 0);
 //Calculate tracks
 let trackPoints = [];
 
-//Calculate closest approach
-let trackA = null; //tracks[0];
-let trackB = null; //tracks[1];
-let distanceMinimum = Number.MAX_VALUE;
-let idMAX = -1;
-
 //Add UI Elements
 var elements = [];
 //addBasicElements();
@@ -194,23 +188,6 @@ function calcTrack(){
         }
     };
 }
-
-function calcMinimum(){
-    //Calculate Point of closest approach.
-    distanceMinimum = Number.MAX_VALUE;
-    idMAX = -1;
-    
-    for (let i = 0; i < simLength; i++){
-        let dx = selectedObject.points[i].x - targetObject.points[i].x;
-        let dy = selectedObject.points[i].y - targetObject.points[i].y;
-        let distance = Math.hypot(dx, dy);
-
-        if(distance < distanceMinimum){
-            distanceMinimum = distance;
-            idMAX = i;
-        }
-    }
-};
 
 function draw(){
     ctx.textAlign = "left";
@@ -458,26 +435,66 @@ function draw(){
         ctx.stroke();
     }
 
-    if(idMAX != -1){
-        //Draw point of closest approach.
-        let point = getPoint(refFrame, idMAX);
+    //Render point of closest approach.    
+    if(targetObject instanceof Track || targetObject instanceof Orbit || targetObject instanceof Manoeuvre || typeof targetObject == 'string'){
+        let min = Number.MAX_VALUE;
+        let idMin = -1;
+        
+        for(let i = 0; i < simLength; i++){
+            if(selectedObject instanceof Track){
+                var pointA = selectedObject.points[i];        
+            }
+            else if(selectedObject instanceof Manoeuvre){
+                var pointA = selectedObject.track.points[i]; 
+            }
+            else if(selectedObject instanceof Orbit){
+                let mVec = kep_2_cart(selectedObject.e, selectedObject.a, selectedObject.i, selectedObject.O, selectedObject.w, time + i * timestep, selectedObject.t0, selectedObject.M0);
+                var pointA = new Point(mVec[0][0], mVec[0][1]);
+            }
+            else{
+                var pointA = new Point(0, 0);
+            };
+    
+            if(targetObject instanceof Track){
+                var pointB = targetObject.points[i];        
+            }
+            else if(targetObject instanceof Manoeuvre){
+                var pointB = targetObject.track.points[i]; 
+            }
+            else if(targetObject instanceof Orbit){
+                let mVec = kep_2_cart(targetObject.e, targetObject.a, targetObject.i, targetObject.O, targetObject.w, time + i * timestep, targetObject.t0, targetObject.M0);
+                var pointB = new Point(mVec[0][0], mVec[0][1]);
+            }
+            else{
+                var pointB = new Point(0, 0);
+            };
+    
+            let dx = pointA.x - pointB.x;
+            let dy = pointA.y - pointB.y;
+            let d = Math.hypot(dx, dy);
+    
+            if(d < min){
+                min = d;
+                idMin = i;
+                var pointAMin = pointA;
+                var pointBMin = pointB;
+            };
+        };
+
+        let point = getPoint(refFrame, idMin);
 
         ctx.strokeStyle = "rgb(255 0 0 / 80%)";
         ctx.lineWidth = 2;
         ctx.setLineDash([10, 5]);
         ctx.beginPath();
-        ctx.moveTo(panOff.x + trackA.points[idMAX].x * scale - point.x * scale, panOff.y + trackA.points[idMAX].y * scale - point.y * scale);
-        ctx.lineTo(panOff.x + trackB.points[idMAX].x * scale - point.x * scale, panOff.y + trackB.points[idMAX].y * scale - point.y * scale);
+        ctx.moveTo(panOff.x + pointAMin.x * scale - point.x * scale, panOff.y + pointAMin.y * scale - point.y * scale);
+        ctx.lineTo(panOff.x + pointBMin.x * scale - point.x * scale, panOff.y + pointBMin.y * scale - point.y * scale);
         ctx.stroke();
 
-        let trk = trackA;
-        if(trk == refFrame){
-            trk = trackB;
-        }
         ctx.fillStyle = "red";
         ctx.font = "16px Consolas";
-        ctx.fillText("Closest approach: T+" + displayTime(idMAX * timestep), panOff.x + trk.points[idMAX].x * scale - point.x * scale + 10, panOff.y + trk.points[idMAX].y * scale - point.y * scale);
-        ctx.fillText(Math.floor(distanceMinimum / 1000) + " Km", panOff.x + trk.points[idMAX].x * scale - point.x * scale + 10, panOff.y + trk.points[idMAX].y * scale - point.y * scale + 16);
+        ctx.fillText("Closest approach: T+" + displayTime(idMin * timestep), panOff.x + pointAMin.x * scale - point.x * scale + 10, panOff.y + pointAMin.y * scale - point.y * scale);
+        ctx.fillText(Math.floor(min / 1000) + " Km", panOff.x + pointAMin.x * scale - point.x * scale + 10, panOff.y + pointAMin.y * scale - point.y * scale + 16);
     };
 
     //Render UI elements
@@ -497,27 +514,6 @@ function draw(){
 
 function degToRad(degrees){
     return(degrees * Math.PI) / 180;
-};
-
-function round(x){
-    return Math.round(x * 100) / 100;
-};
-
-function displayTime(t){
-    if(t < 3600){
-        return new Date(t * 1000).toISOString().substring(14,19);
-    }
-    else if(t < 86400){
-        return new Date(t * 1000).toISOString().substring(11,19);
-    }
-    else{
-        let days = 0
-        while(t >= 86400){
-            days++;
-            t -= 86400;
-        }
-        return days + "D " + new Date(t * 1000).toISOString().substring(11,19);
-    }
 };
 
 function getPoint(obj, i){
