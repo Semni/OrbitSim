@@ -15,7 +15,7 @@ class Orbit{
 }
 
 class Track{
-    constructor(x, y, vx, vy, name, size, colour, mass, points, manoeuvres){
+    constructor(x, y, vx, vy, name, size, colour, mass, points, vectors, manoeuvres){
         this.x = x;
         this.y = y;
         this.vx = vx;
@@ -25,6 +25,7 @@ class Track{
         this.colour = colour;
         this.mass = mass;
         this.points = points;
+        this.vectors = vectors;
         this.manoeuvres = manoeuvres;
     }
 }
@@ -51,16 +52,17 @@ const width = (canvas.width = window.innerWidth);
 const height = (canvas.height = window.innerHeight);
 ctx.translate(width / 2, height / 2);
 
-var simLength = 1440;
+var simLength = 1440 * 4;
 const G = 6.67430e-11
 
 var timestep = 60
-var scale = 0.005e-3
+var scale = 0.02e-3
 
 const selectionRadius = 10;
 
 const mu = G * 9.45996e24;
 const R = 14951e3 / 2;
+var time = 3600 * 12;
 
 var deltaTi = 0;
 const deltaTime = [60, 600, 3600, 86400];
@@ -81,10 +83,8 @@ const targetSize = 16;
 var moons = [new Orbit(0.02, 416490e3, 0, 0, 0, 0, 0, 332e3 / 2, G * 1.06e20, "Delta", "rgb(200 200 200)")];
 
 var tracks = [];
-let vectors = kep_2_cart(0, R + 600e3, 0, 0, 0, 0, 0, 0);
-tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "1st Squadron", -1, "orange", 0, [], []));
-vectors = kep_2_cart(0.02, 416490e3 + 500e3, 0, 0, 0, 0, 0, 0);
-tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "2nd Squadron", -1, "orange", 0, [], []));
+let vectors = kep_2_cart(0, R + 600e3, 0, 0, 0, time, 0, 0);
+tracks.push(new Track(vectors[0][0], vectors[0][1], vectors[1][0], vectors[1][1], "1st Squadron", -1, "orange", 0, [], [], []));
 
 //Selected object
 var selectedObject = null;
@@ -166,7 +166,7 @@ canvas.addEventListener('click', function(event) {
     //Select orbiting objects
     moons.forEach(function(element) {
         let s = element.R * scale + selectionRadius;
-        let mVec = kep_2_cart(element.e, element.a, element.i, element.O, element.w, 0, element.t0, element.M0);
+        let mVec = kep_2_cart(element.e, element.a, element.i, element.O, element.w, time, element.t0, element.M0);
         if(Math.abs((mVec[0][0] - rPoint.x) * scale - x) <= s && Math.abs((mVec[0][1] - rPoint.y) * scale - y) <= s){
             selectedObject = element;
             draw();
@@ -196,6 +196,7 @@ function calcTrack(){
         var vy = tracks[i].vy;
         for (let j = 0; j < simLength; j++) {
             tracks[i].points[j] = new Point(x, y);
+            tracks[i].vectors[j] = new Point(vx, vy);
 
             var d = Math.hypot(x, y);
 
@@ -208,7 +209,7 @@ function calcTrack(){
             vy += yAcc * a * timestep;
 
             moons.forEach(function(moon) {
-                var mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, j*timestep, moon.t0, moon.M0);
+                var mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, time + j * timestep, moon.t0, moon.M0);
 
                 var mx = mVec[0][0];
                 var my = mVec[0][1];
@@ -281,7 +282,7 @@ function draw(){
 
     //Draw Moons
     moons.forEach(function(moon) {
-        let mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, 0, moon.t0, moon.M0);
+        let mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, time, moon.t0, moon.M0);
 
         //Add point
         ctx.fillStyle = moon.colour;
@@ -297,7 +298,7 @@ function draw(){
         
         ctx.moveTo(panOff.x + (mVec[0][0] - rPoint.x) * scale, panOff.y + (mVec[0][1] - rPoint.y) * scale);
         for (let j = 0; j < simLength; j++) {
-            mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, j * timestep, moon.t0, moon.M0);
+            mVec = kep_2_cart(moon.e, moon.a, moon.i, moon.O, moon.w, time + j * timestep, moon.t0, moon.M0);
             let point = getPoint(refFrame, j);
             ctx.lineTo(panOff.x + (mVec[0][0] - point.x) * scale, panOff.y + (mVec[0][1] - point.y) * scale);
         }
@@ -306,6 +307,7 @@ function draw(){
 
     //Draw simulated track
     for (let i = 0; i < tracks.length; i++) {
+
         //Draw trajectory track
         ctx.strokeStyle = "rgb(255 255 255 / 80%)";
         ctx.lineWidth = 2;
@@ -358,13 +360,35 @@ function draw(){
         ctx.arc(x, y, r, degToRad(0), degToRad(360), false);
         ctx.stroke();
 
+        ctx.beginPath();
+        ctx.strokeStyle = "red";
+        let l = Math.floor(deltaTime[deltaTi] / timestep);
+        let x0 = selectedObject.points[l].x;
+        let y0 = selectedObject.points[l].y;
+        let x1 = selectedObject.points[l + 1].x;
+        let y1 = selectedObject.points[l + 1].y;
+        let xv = x1 - x0;
+        let yv = y1 - y0;
+        let d = Math.hypot(xv, yv);
+        let xh = xv / d;
+        let yh = yv / d;
+        let c = math.cross([xh, yh, 0], [0, 0, 1]);
+
+        x = panOff.x + (x0 - rPoint.x) * scale - c[0] * selectionSize;
+        y = panOff.y + (y0 - rPoint.y) * scale - c[1] * selectionSize;
+        ctx.moveTo(x, y);
+        x += c[0] * selectionSize * 2;
+        y += c[1] * selectionSize * 2;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
         //Display selected item info
         ctx.fillStyle = "white";
         ctx.font = "16px Consolas";
         ctx.fillText("Track " + selectedObject.name, -(width / 2) + 10, -(height / 2) + 20 + 16 * 3);
     }
     else if(selectedObject instanceof Orbit){
-        let mVec = kep_2_cart(selectedObject.e, selectedObject.a, selectedObject.i, selectedObject.O, selectedObject.w, 0, selectedObject.t0, selectedObject.M0);
+        let mVec = kep_2_cart(selectedObject.e, selectedObject.a, selectedObject.i, selectedObject.O, selectedObject.w, time, selectedObject.t0, selectedObject.M0);
 
         let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
         let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
@@ -430,7 +454,7 @@ function draw(){
         ctx.stroke();
     }
     else if(targetObject instanceof Orbit){
-        let mVec = kep_2_cart(targetObject.e, targetObject.a, targetObject.i, targetObject.O, targetObject.w, 0, targetObject.t0, targetObject.M0);
+        let mVec = kep_2_cart(targetObject.e, targetObject.a, targetObject.i, targetObject.O, targetObject.w, time, targetObject.t0, targetObject.M0);
 
         let x = panOff.x + (mVec[0][0] - rPoint.x) * scale;
         let y = panOff.y + (mVec[0][1] - rPoint.y) * scale;
@@ -549,7 +573,7 @@ function getPoint(obj, i){
         return obj.points[i];
     }
     else if(obj instanceof Orbit){
-        var mVec = kep_2_cart(obj.e, obj.a, obj.i, obj.O, obj.w, i * timestep, obj.t0, obj.M0);
+        var mVec = kep_2_cart(obj.e, obj.a, obj.i, obj.O, obj.w, time + i * timestep, obj.t0, obj.M0);
         return new Point(mVec[0][0], mVec[0][1]);
     }
     else{
